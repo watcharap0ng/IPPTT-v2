@@ -1,9 +1,12 @@
-FROM python:3.12-slim
+FROM python:3.11-bookworm
 
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    zeroc-ice-all-dev \
+    g++ \
+    libssl-dev \
+    libbz2-dev \
+    libmcpp-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

@@ -17,15 +17,13 @@ COPY packages/shared/ ./packages/shared/
 COPY apps/backend/ ./apps/backend/
 RUN pnpm --filter @ipptt/backend build
 
-# Production
-FROM node:22-alpine AS runner
+# Production — keep pnpm structure intact
+FROM base AS runner
 WORKDIR /app
-COPY --from=build /app/apps/backend/dist ./dist
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/apps/backend/node_modules ./apps/backend/node_modules
+COPY --from=build /app ./
 
 ENV HOST=0.0.0.0
 ENV PORT=3001
 EXPOSE 3001
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "apps/backend/dist/index.js"]
