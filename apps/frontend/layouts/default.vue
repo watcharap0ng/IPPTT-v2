@@ -42,11 +42,13 @@ function handleLogout() {
             >
               Logout
             </button>
+            <ClientOnly><ThemeToggle /></ClientOnly>
           </template>
           <template v-else>
             <NuxtLink to="/login" class="text-sm text-muted-foreground hover:text-foreground">
               Login
             </NuxtLink>
+            <ClientOnly><ThemeToggle /></ClientOnly>
           </template>
         </nav>
       </div>

@@ -4,9 +4,16 @@ export default defineNuxtConfig({
 
   modules: [
     '@nuxtjs/tailwindcss',
+    '@nuxtjs/color-mode',
     'shadcn-nuxt',
     '@pinia/nuxt',
   ],
+
+  colorMode: {
+    classSuffix: '',
+    preference: 'system',
+    fallback: 'light',
+  },
 
   shadcn: {
     prefix: '',
