@@ -1,0 +1,166 @@
+services:
+  frontend:
+    image: ghcr.io/${GITHUB_REPO:-watcharap0ng/ipptt-v2}/frontend:latest
+    restart: unless-stopped
+    environment:
+      - NUXT_PUBLIC_API_BASE=http://backend:3001
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - ipptt
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  backend:
+    image: ghcr.io/${GITHUB_REPO:-watcharap0ng/ipptt-v2}/backend:latest
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ipptt
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  murmur:
+    image: mumblevoip/mumble-server:latest
+    restart: unless-stopped
+    ports:
+      - "64738:64738/tcp"
+      - "64738:64738/udp"
+    volumes:
+      - ./config/murmur/murmur.ini:/etc/mumble/config.ini:ro
+      - murmur-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "netstat -ln | grep 64738"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - ipptt
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  murmur-rest:
+    image: ghcr.io/${GITHUB_REPO:-watcharap0ng/ipptt-v2}/murmur-rest:latest
+    restart: unless-stopped
+    environment:
+      - MURMUR_ICE_HOST=murmur
+      - MURMUR_ICE_PORT=6502
+    depends_on:
+      murmur:
+        condition: service_healthy
+    networks:
+      - ipptt
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./config/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-W", "3"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ipptt
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  traccar:
+    image: traccar/traccar:latest
+    restart: unless-stopped
+    ports:
+      - "5055:5055/tcp"
+      - "5055:5055/udp"
+    volumes:
+      - ./config/traccar/traccar.xml:/opt/traccar/conf/traccar.xml:ro
+      - traccar-data:/opt/traccar/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8082"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ipptt
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ipptt
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - ipptt
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+volumes:
+  mongo-data:
+  murmur-data:
+  mosquitto-data:
+  traccar-data:
+
+networks:
+  ipptt:
+    driver: bridge
